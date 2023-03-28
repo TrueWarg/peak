@@ -1,38 +1,52 @@
 mod arithmetic;
 mod task;
-use std::io;
+mod tasks_pipe;
+use std::{collections::HashSet};
 
-use anyhow::{Context, Ok, Result};
-use arithmetic::Plus;
+use anyhow::{anyhow, Ok, Result};
+use arithmetic::{Sub, Sum};
 use clap::Parser;
 use rand::Rng;
 use task::Question;
-
-use crate::task::default_check;
+use tasks_pipe::run;
 
 #[derive(Parser)]
 struct Args {
     count: u32,
+    exersise: String,
 }
 
 fn main() -> Result<()> {
     let args = Args::parse();
     let mut rng = rand::thread_rng();
-    for i in 0..args.count {
-        println!("{} / {}", i + 1, args.count);
-        let plus = Plus {
-            a: rng.gen_range(0..100),
-            b: rng.gen_range(0..100),
-        };
-        let body = plus.body();
-        println!("{} = ?", body);
-        let mut line = String::new();
-        io::stdin().read_line(&mut line)?;
-        let answer: i32 = line.trim().parse().expect("Input not an integer");
-        let result = default_check::<Plus>(plus.solution(), answer);
-        let message = if result { "Right" } else { "Wrong" };
-        println!("{}", message);
+    let mut questions: Vec<Box<dyn Question>> = Vec::new();
+    let types: HashSet<&str> = vec!["sum", "sub"].into_iter().collect();
+    let typ = args.exersise.as_str();
+    if !types.contains(typ) {
+        let message = format!("unknown type `{}`", &args.exersise);
+        return Err(anyhow!(message));
     }
+    for _ in 0..&args.count - 1 {
+        if typ == "sum" {
+            let value = Sum {
+                a: rng.gen_range(0..100),
+                b: rng.gen_range(0..100),
+            };
+            questions.push(Box::new(value));
+        }
+        if typ == "sum" {
+            let value = Sub {
+                a: rng.gen_range(0..100),
+                b: rng.gen_range(0..100),
+            };
+            questions.push(Box::new(value));
+        }
+    }
+    run(
+        &questions,
+        &mut std::io::stdin().lock(),
+        &mut std::io::stdout(),
+    )?;
     Ok(())
 }
 
