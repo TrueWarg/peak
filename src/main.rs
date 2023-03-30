@@ -34,7 +34,7 @@ fn main() -> Result<()> {
             };
             questions.push(Box::new(value));
         }
-        if typ == "sum" {
+        if typ == "sub" {
             let value = Sub {
                 a: rng.gen_range(0..100),
                 b: rng.gen_range(0..100),
