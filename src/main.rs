@@ -26,7 +26,7 @@ fn main() -> Result<()> {
         let message = format!("unknown type `{}`", &args.exersise);
         return Err(anyhow!(message));
     }
-    for _ in 0..&args.count - 1 {
+    for _ in 1..&args.count + 1 {
         if typ == "sum" {
             let value = Sum {
                 a: rng.gen_range(0..100),

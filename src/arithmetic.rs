@@ -1,4 +1,5 @@
 use crate::task::Question;
+use anyhow::{Context, Ok, Result};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Sum {
@@ -16,10 +17,13 @@ impl Question for Sum {
         return format!("{} + {} = ?", self.a, self.b);
     }
 
-    fn check(&self, answer: &String) -> bool {
-        let answer: i32 = answer.trim().parse().expect("Input not an integer");
+    fn check(&self, answer: &String) -> Result<bool> {
+        let answer: i32 = answer
+            .trim()
+            .parse()
+            .with_context(|| format!("Input is not an integer `{}`", answer))?;
         let solution = self.a + self.b;
-        answer == solution
+        Ok(answer == solution)
     }
 }
 
@@ -28,9 +32,12 @@ impl Question for Sub {
         return format!("{} - {} = ?", self.a, self.b);
     }
 
-    fn check(&self, answer: &String) -> bool {
-        let answer: i32 = answer.trim().parse().expect("Input not an integer");
+    fn check(&self, answer: &String) -> Result<bool> {
+        let answer: i32 = answer
+            .trim()
+            .parse()
+            .with_context(|| format!("Input is not an integer `{}`", answer))?;
         let solution = self.a - self.b;
-        answer == solution
+        Ok(answer == solution)
     }
 }
