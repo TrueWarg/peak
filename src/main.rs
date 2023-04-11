@@ -1,10 +1,10 @@
 mod arithmetic;
 mod task;
 mod tasks_pipe;
-use std::{collections::HashSet};
+use std::collections::HashSet;
 
 use anyhow::{anyhow, Ok, Result};
-use arithmetic::{Sub, Sum};
+use arithmetic::{Div, Mod, Mul, Sub, Sum};
 use clap::Parser;
 use rand::Rng;
 use task::Question;
@@ -20,7 +20,9 @@ fn main() -> Result<()> {
     let args = Args::parse();
     let mut rng = rand::thread_rng();
     let mut questions: Vec<Box<dyn Question>> = Vec::new();
-    let types: HashSet<&str> = vec!["sum", "sub"].into_iter().collect();
+    let types: HashSet<&str> = vec!["sum", "sub", "mul", "div", "mod"]
+        .into_iter()
+        .collect();
     let typ = args.exersise.as_str();
     if !types.contains(typ) {
         let message = format!("unknown type `{}`", &args.exersise);
@@ -41,6 +43,27 @@ fn main() -> Result<()> {
             };
             questions.push(Box::new(value));
         }
+        if typ == "mul" {
+            let value = Mul {
+                a: rng.gen_range(0..25),
+                b: rng.gen_range(0..25),
+            };
+            questions.push(Box::new(value));
+        }
+        if typ == "div" {
+            let value = Div {
+                a: rng.gen_range(1..20),
+                b: rng.gen_range(1..10),
+            };
+            questions.push(Box::new(value));
+        }
+        if typ == "mod" {
+            let value = Mod {
+                a: rng.gen_range(1..20),
+                b: rng.gen_range(1..10),
+            };
+            questions.push(Box::new(value));
+        }
     }
     run(
         &questions,
@@ -51,8 +74,8 @@ fn main() -> Result<()> {
 }
 
 // plan
-// 1. Arymphmetic (*, +, -, /)
-//    int.
+// 1. Arymphmetic (*, +, -, /) + 
+//    int. + 
 //    float
 // 2. %
 // 3. combinations
