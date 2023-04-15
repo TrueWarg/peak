@@ -1,4 +1,6 @@
+mod abstract_sequence;
 mod arithmetic;
+mod percentage;
 mod task;
 mod tasks_pipe;
 use std::collections::HashSet;
@@ -6,6 +8,7 @@ use std::collections::HashSet;
 use anyhow::{anyhow, Ok, Result};
 use arithmetic::{Div, Mod, Mul, Sub, Sum};
 use clap::Parser;
+use percentage::Percent;
 use rand::Rng;
 use task::Question;
 use tasks_pipe::run;
@@ -20,7 +23,7 @@ fn main() -> Result<()> {
     let args = Args::parse();
     let mut rng = rand::thread_rng();
     let mut questions: Vec<Box<dyn Question>> = Vec::new();
-    let types: HashSet<&str> = vec!["sum", "sub", "mul", "div", "mod"]
+    let types: HashSet<&str> = vec!["sum", "sub", "mul", "div", "mod", "percent"]
         .into_iter()
         .collect();
     let typ = args.exersise.as_str();
@@ -64,6 +67,14 @@ fn main() -> Result<()> {
             };
             questions.push(Box::new(value));
         }
+        if typ == "percent" {
+            let value = Percent {
+                full: rng.gen_range(1..1000) as f64,
+                percent: rng.gen_range(1..100) as f64,
+                precision: 1,
+            };
+            questions.push(Box::new(value));
+        }
     }
     run(
         &questions,
@@ -74,8 +85,8 @@ fn main() -> Result<()> {
 }
 
 // plan
-// 1. Arymphmetic (*, +, -, /) + 
-//    int. + 
+// 1. Arymphmetic (*, +, -, /) +
+//    int. +
 //    float
 // 2. %
 // 3. combinations
