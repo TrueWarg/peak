@@ -5,11 +5,12 @@ mod task;
 mod tasks_pipe;
 use std::collections::HashSet;
 
+use abstract_sequence::{all_combinations, Missing, SeqItem};
 use anyhow::{anyhow, Ok, Result};
 use arithmetic::{Div, Mod, Mul, Sub, Sum};
 use clap::Parser;
 use percentage::Percent;
-use rand::Rng;
+use rand::{seq::SliceRandom, Rng};
 use task::Question;
 use tasks_pipe::run;
 
@@ -23,7 +24,7 @@ fn main() -> Result<()> {
     let args = Args::parse();
     let mut rng = rand::thread_rng();
     let mut questions: Vec<Box<dyn Question>> = Vec::new();
-    let types: HashSet<&str> = vec!["sum", "sub", "mul", "div", "mod", "percent"]
+    let types: HashSet<&str> = vec!["sum", "sub", "mul", "div", "mod", "percent", "missing"]
         .into_iter()
         .collect();
     let typ = args.exersise.as_str();
@@ -75,6 +76,10 @@ fn main() -> Result<()> {
             };
             questions.push(Box::new(value));
         }
+        if typ == "missing" {
+            let value = abstract_seq_missing();
+            questions.push(Box::new(value));
+        }
     }
     run(
         &questions,
@@ -84,11 +89,34 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-// plan
-// 1. Arymphmetic (*, +, -, /) +
-//    int. +
-//    float
-// 2. %
+fn abstract_seq_missing() -> Missing {
+    let mut rng = rand::thread_rng();
+    let mut items = all_combinations();
+    items.shuffle(&mut rng);
+    let length = items.len();
+    let solution = items[rng.gen_range(0..length)];
+    let mut options: Vec<SeqItem> = vec![];
+    let options_count = 4;
+    let right_position = rng.gen_range(0..options_count);
+    loop {
+        if options.len() == right_position {
+            options.push(solution);
+        }
+        if options.len() == options_count {
+            break;
+        }
+        let candidate = items[rng.gen_range(0..length)];
+        if !options.contains(&candidate) {
+            options.push(candidate);
+        }
+    }
+    return Missing {
+        items,
+        options,
+        solution,
+    };
+}
+
 // 3. combinations
 // 4. Regimes: skip, until right
 // 5. Statistic.
