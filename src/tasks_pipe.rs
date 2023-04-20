@@ -1,4 +1,5 @@
 use crate::{
+    abstract_sequence::{all_combinations, Form, Missing, SeqItem, Size},
     arithmetic::{Div, Mod, Mul, Sub, Sum},
     percentage::Percent,
     task::Question,
@@ -122,5 +123,79 @@ fn percents_1() -> Result<()> {
         &output,
         b"123 = 100 %\n? ~= 12 %\ntrue\n123 = 100 %\n? ~= 12 %\nfalse\n"
     );
+    Ok(())
+}
+
+#[test]
+fn abstract_seq_missing_0() -> Result<()> {
+    let item1 = SeqItem {
+        form: Form::Star,
+        size: Size::Small,
+    };
+    let item2 = SeqItem {
+        form: Form::Ampersand,
+        size: Size::Big,
+    };
+    let item3 = SeqItem {
+        form: Form::Cover,
+        size: Size::Medium,
+    };
+    let questions: Vec<Box<dyn Question>> = vec![
+        Box::new(Missing {
+            items: vec![item1, item2, item3],
+            options: vec![item1, item2],
+            solution: item2,
+        }),
+        Box::new(Missing {
+            items: vec![item1, item2, item3],
+            options: vec![item3, item2],
+            solution: item3,
+        }),
+    ];
+    let mut input = "2\n2\n".as_bytes();
+    let mut output: Vec<u8> = Vec::new();
+    run(&questions, &mut input, &mut output)?;
+    assert_eq!(
+        &output,
+        b"* ? ^^\n1. * 2. &&&\ntrue\n* &&& ?\n1. ^^ 2. &&&\nfalse\n"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn abstract_seq_missing_1() -> Result<()> {
+    let item1 = SeqItem {
+        form: Form::Star,
+        size: Size::Small,
+    };
+    let item2 = SeqItem {
+        form: Form::Ampersand,
+        size: Size::Big,
+    };
+    let item3 = SeqItem {
+        form: Form::Cover,
+        size: Size::Medium,
+    };
+    let questions: Vec<Box<dyn Question>> = vec![
+        Box::new(Missing {
+            items: all_combinations(),
+            options: vec![item1, item2, item3],
+            solution: item3,
+        }),
+        Box::new(Missing {
+            items: all_combinations(),
+            options: vec![item1, item2, item3],
+            solution: item1,
+        }),
+    ];
+    let mut input = "1\n1\n".as_bytes();
+    let mut output: Vec<u8> = Vec::new();
+    run(&questions, &mut input, &mut output)?;
+    assert_eq!(
+        &output,
+        b"* ** *** & && &&& ^ ? ^^^\n1. * 2. &&& 3. ^^\nfalse\n? ** *** & && &&& ^ ^^ ^^^\n1. * 2. &&& 3. ^^\ntrue\n"
+    );
+
     Ok(())
 }
