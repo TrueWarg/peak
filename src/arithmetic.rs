@@ -91,6 +91,6 @@ fn convert_to_i32(value: &String) -> Result<i32> {
     let value: i32 = value
         .trim()
         .parse()
-        .with_context(|| format!("Input is not an integer `{}`", value))?;
+        .with_context(|| format!("Input is not an integer `{}`", value.trim()))?;
     return Ok(value);
 }
