@@ -19,7 +19,7 @@ impl Question for Percent {
         let answer: f64 = answer
             .trim()
             .parse()
-            .with_context(|| format!("Input is not an real `{}`", answer))?;
+            .with_context(|| format!("Input is not an real `{}`", answer.trim()))?;
         let solution = (self.full * self.percent) / 100.0;
         Ok(approx_equal(answer, solution, self.precision))
     }

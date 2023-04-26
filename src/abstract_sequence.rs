@@ -98,7 +98,7 @@ impl Question for Missing {
         let answer: u8 = answer
             .trim()
             .parse()
-            .with_context(|| format!("Input is not an integer `{}`", answer))?;
+            .with_context(|| format!("Input is not an integer `{}`", answer.trim()))?;
         let answer = self
             .options
             .get(answer as usize - 1)
