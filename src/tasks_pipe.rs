@@ -2,12 +2,14 @@ use crate::{
     abstract_sequence::{all_combinations, Form, Missing, SeqItem, Size},
     arithmetic::{Div, Mod, Mul, Sub, Sum},
     percentage::Percent,
+    stats::{CollectedStats, StatsConfig},
     task::Question,
 };
 use anyhow::{Ok, Result};
 use std::{
     io::{BufRead, Write},
     iter::Skip,
+    time::{Duration, Instant},
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -16,11 +18,61 @@ pub enum PipeMod {
     Skip,
 }
 
-pub fn run<Q: Question + ?Sized>(
+pub fn run_without_steps<Q: Question + ?Sized>(
     questions: &Vec<Box<Q>>,
     pipe_mod: &PipeMod,
     mut reader: impl BufRead,
     mut writer: impl Write,
+) -> Result<()> {
+    run(questions, pipe_mod, reader, writer, |_| (), |_, _| ())
+}
+
+pub fn run_with_stats<Q: Question + ?Sized>(
+    questions: &Vec<Box<Q>>,
+    pipe_mod: &PipeMod,
+    mut reader: impl BufRead,
+    mut writer: impl Write,
+    stats_config: &StatsConfig,
+) -> Result<CollectedStats> {
+    let instant = Instant::now();
+    let mut times: Vec<u64> = vec![];
+    let mut pos_negs: Vec<bool> = vec![];
+
+    run(
+        &questions,
+        &pipe_mod,
+        reader,
+        writer,
+        |_| (),
+        |_, answer| {
+            if stats_config.time {
+                times.push(instant.elapsed().as_secs())
+            }
+            if stats_config.percentage {
+                pos_negs.push(answer)
+            }
+        },
+    )?;
+    let times = if stats_config.time { Some(times) } else { None };
+    let pos_negs = if stats_config.percentage {
+        Some(pos_negs)
+    } else {
+        None
+    };
+    Ok(CollectedStats {
+        times_secs: times,
+        pos_negs: pos_negs,
+    })
+}
+
+// todo: move reader and writer to step functiobs?
+pub fn run<Q: Question + ?Sized, FStart: FnMut(&Q) -> (), FEnd: FnMut(&Q, bool) -> ()>(
+    questions: &Vec<Box<Q>>,
+    pipe_mod: &PipeMod,
+    mut reader: impl BufRead,
+    mut writer: impl Write,
+    mut on_step_start: FStart,
+    mut on_step_end: FEnd,
 ) -> Result<()> {
     if questions.is_empty() {
         return Ok(());
@@ -31,11 +83,13 @@ pub fn run<Q: Question + ?Sized>(
         let question = &questions[index];
         let body = question.body();
         writeln!(writer, "{}", body)?;
+        on_step_start(&question);
         let mut line = String::new();
         reader.read_line(&mut line)?;
         let result = question.check(&line);
         match result {
             Result::Ok(correct) => {
+                on_step_end(&question, correct);
                 writeln!(writer, "{}", correct)?;
                 index = next_index(index, correct, pipe_mod);
             }
@@ -69,7 +123,7 @@ fn sum_and_sub_0() -> Result<()> {
         vec![Box::new(Sum { a: 1, b: 1 }), Box::new(Sub { a: 1, b: 1 })];
     let mut input = "2\n0\n".as_bytes();
     let mut output: Vec<u8> = Vec::new();
-    run(&questions, &PipeMod::Skip, &mut input, &mut output)?;
+    run_without_steps(&questions, &PipeMod::Skip, &mut input, &mut output)?;
     assert_eq!(&output, b"1 + 1 = ?\ntrue\n1 - 1 = ?\ntrue\n");
     Ok(())
 }
@@ -80,7 +134,7 @@ fn sum_and_sub_1() -> Result<()> {
         vec![Box::new(Sum { a: 1, b: 1 }), Box::new(Sub { a: 1, b: 1 })];
     let mut input = "2\n2\n".as_bytes();
     let mut output: Vec<u8> = Vec::new();
-    run(&questions, &PipeMod::Skip, &mut input, &mut output)?;
+    run_without_steps(&questions, &PipeMod::Skip, &mut input, &mut output)?;
     assert_eq!(&output, b"1 + 1 = ?\ntrue\n1 - 1 = ?\nfalse\n");
     Ok(())
 }
@@ -90,7 +144,7 @@ fn sum_fail_on_non_digit() -> Result<()> {
     let questions: Vec<Box<dyn Question>> = vec![Box::new(Sum { a: 1, b: 1 })];
     let mut input = "kek\n2\n".as_bytes();
     let mut output: Vec<u8> = Vec::new();
-    run(&questions, &PipeMod::Skip, &mut input, &mut output)?;
+    run_without_steps(&questions, &PipeMod::Skip, &mut input, &mut output)?;
     assert_eq!(
         &output,
         b"1 + 1 = ?\nInput is not an integer `kek`\n1 + 1 = ?\ntrue\n"
@@ -104,7 +158,7 @@ fn mul_and_div_0() -> Result<()> {
         vec![Box::new(Mul { a: 4, b: 5 }), Box::new(Div { a: 5, b: 2 })];
     let mut input = "20\n3\n".as_bytes();
     let mut output: Vec<u8> = Vec::new();
-    run(&questions, &PipeMod::Skip, &mut input, &mut output)?;
+    run_without_steps(&questions, &PipeMod::Skip, &mut input, &mut output)?;
     assert_eq!(&output, b"4 * 5 = ?\ntrue\n5 div 2 = ?\nfalse\n");
     Ok(())
 }
@@ -115,7 +169,7 @@ fn div_and_mod_0() -> Result<()> {
         vec![Box::new(Div { a: 8, b: 4 }), Box::new(Mod { a: 5, b: 2 })];
     let mut input = "2\n1\n".as_bytes();
     let mut output: Vec<u8> = Vec::new();
-    run(&questions, &PipeMod::Skip, &mut input, &mut output)?;
+    run_without_steps(&questions, &PipeMod::Skip, &mut input, &mut output)?;
     assert_eq!(&output, b"8 div 4 = ?\ntrue\n5 mod 2 = ?\ntrue\n");
     Ok(())
 }
@@ -136,7 +190,7 @@ fn percents_0() -> Result<()> {
     ];
     let mut input = "12\n12\n".as_bytes();
     let mut output: Vec<u8> = Vec::new();
-    run(&questions, &PipeMod::Skip, &mut input, &mut output)?;
+    run_without_steps(&questions, &PipeMod::Skip, &mut input, &mut output)?;
     assert_eq!(
         &output,
         b"100 = 100 %\n? ~= 12 %\ntrue\n200 = 100 %\n? ~= 12 %\nfalse\n"
@@ -160,7 +214,7 @@ fn percents_1() -> Result<()> {
     ];
     let mut input = "14.7\n14\n".as_bytes();
     let mut output: Vec<u8> = Vec::new();
-    run(&questions, &PipeMod::Skip, &mut input, &mut output)?;
+    run_without_steps(&questions, &PipeMod::Skip, &mut input, &mut output)?;
     assert_eq!(
         &output,
         b"123 = 100 %\n? ~= 12 %\ntrue\n123 = 100 %\n? ~= 12 %\nfalse\n"
@@ -196,7 +250,7 @@ fn abstract_seq_missing_0() -> Result<()> {
     ];
     let mut input = "2\n2\n".as_bytes();
     let mut output: Vec<u8> = Vec::new();
-    run(&questions, &PipeMod::Skip, &mut input, &mut output)?;
+    run_without_steps(&questions, &PipeMod::Skip, &mut input, &mut output)?;
     assert_eq!(
         &output,
         b"* ? ^^\n1. * 2. &&&\ntrue\n* &&& ?\n1. ^^ 2. &&&\nfalse\n"
@@ -232,7 +286,7 @@ fn abstract_seq_missing_1() -> Result<()> {
     ];
     let mut input = "1\n1\n".as_bytes();
     let mut output: Vec<u8> = Vec::new();
-    run(&questions, &PipeMod::Skip, &mut input, &mut output)?;
+    run_without_steps(&questions, &PipeMod::Skip, &mut input, &mut output)?;
     assert_eq!(
         &output,
         b"* ** *** & && &&& ^ ? ^^^\n1. * 2. &&& 3. ^^\nfalse\n? ** *** & && &&& ^ ^^ ^^^\n1. * 2. &&& 3. ^^\ntrue\n"
@@ -245,7 +299,7 @@ fn mod_until_right_0() -> Result<()> {
     let questions: Vec<Box<dyn Question>> = vec![Box::new(Sum { a: 1, b: 1 })];
     let mut input = "12\n2\n".as_bytes();
     let mut output: Vec<u8> = Vec::new();
-    run(&questions, &PipeMod::UntilRight, &mut input, &mut output)?;
+    run_without_steps(&questions, &PipeMod::UntilRight, &mut input, &mut output)?;
     assert_eq!(&output, b"1 + 1 = ?\nfalse\n1 + 1 = ?\ntrue\n");
     Ok(())
 }
@@ -256,7 +310,10 @@ fn mod_until_right_1() -> Result<()> {
         vec![Box::new(Sum { a: 1, b: 1 }), Box::new(Sum { a: 2, b: 3 })];
     let mut input = "2\n2\n5\n".as_bytes();
     let mut output: Vec<u8> = Vec::new();
-    run(&questions, &PipeMod::UntilRight, &mut input, &mut output)?;
-    assert_eq!(&output, b"1 + 1 = ?\ntrue\n2 + 3 = ?\nfalse\n2 + 3 = ?\ntrue\n");
+    run_without_steps(&questions, &PipeMod::UntilRight, &mut input, &mut output)?;
+    assert_eq!(
+        &output,
+        b"1 + 1 = ?\ntrue\n2 + 3 = ?\nfalse\n2 + 3 = ?\ntrue\n"
+    );
     Ok(())
 }

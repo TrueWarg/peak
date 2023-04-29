@@ -1,9 +1,15 @@
 mod abstract_sequence;
 mod arithmetic;
 mod percentage;
+mod stats;
 mod task;
 mod tasks_pipe;
-use std::{collections::HashSet, fmt::format};
+use core::time;
+use std::{
+    collections::HashSet,
+    fmt::format,
+    time::{Duration, Instant},
+};
 
 use abstract_sequence::{all_combinations, Missing, SeqItem};
 use anyhow::{anyhow, Ok, Result};
@@ -11,14 +17,18 @@ use arithmetic::{Div, Mod, Mul, Sub, Sum};
 use clap::Parser;
 use percentage::Percent;
 use rand::{seq::SliceRandom, Rng};
+use stats::{calculate_total_pos_neg, StatsConfig};
 use task::Question;
-use tasks_pipe::{run, PipeMod};
+use tasks_pipe::{run, run_with_stats, run_without_steps, PipeMod};
+
+use crate::stats::calculate_average_time_secs;
 
 #[derive(Parser)]
 struct Args {
     count: u32,
     exersise: String,
     pipe_mod: Option<String>,
+    stats_config: Option<String>,
 }
 
 fn main() -> Result<()> {
@@ -43,6 +53,12 @@ fn main() -> Result<()> {
         let message = format!("unknown mod `{}`", &pipe_mod);
         return Err(anyhow!(message));
     }
+    // todo handle incorrect stats config options
+    let stats_configs = match args.stats_config {
+        Some(opts) => Some(parse_config_stat_options(opts)),
+        None => None,
+    };
+
     for _ in 1..&args.count + 1 {
         if typ == "sum" {
             let value = Sum {
@@ -97,12 +113,43 @@ fn main() -> Result<()> {
         "right" => PipeMod::UntilRight,
         _ => PipeMod::Skip,
     };
-    run(
-        &questions,
-        &pipe_mod,
-        &mut std::io::stdin().lock(),
-        &mut std::io::stdout(),
-    )?;
+    let stats_config = stats_configs.map(|opts| StatsConfig {
+        time: opts.contains("time"),
+        percentage: opts.contains("percentage"),
+    });
+
+    match stats_config {
+        Some(value) => {
+            let stats = run_with_stats(
+                &questions,
+                &pipe_mod,
+                &mut std::io::stdin().lock(),
+                &mut std::io::stdout(),
+                &value,
+            )?;
+            if stats.times_secs.is_some() {
+                let average = calculate_average_time_secs(stats.times_secs.unwrap());
+                println!("Average time: {} secs", average);
+            }
+            if stats.pos_negs.is_some() {
+                let pos_neg = calculate_total_pos_neg(stats.pos_negs.unwrap());
+                println!(
+                    "Rate: {} / {}",
+                    pos_neg.positive,
+                    pos_neg.positive + pos_neg.negative
+                );
+            }
+        }
+        None => {
+            run_without_steps(
+                &questions,
+                &pipe_mod,
+                &mut std::io::stdin().lock(),
+                &mut std::io::stdout(),
+            )?;
+        }
+    }
+
     Ok(())
 }
 
@@ -132,6 +179,15 @@ fn abstract_seq_missing() -> Missing {
         options,
         solution,
     };
+}
+
+fn parse_config_stat_options(opts: String) -> HashSet<String> {
+    let opts = opts.split(" ");
+    let mut vector: Vec<String> = Vec::new();
+    for opt in opts {
+        vector.push(String::from(opt.trim()));
+    }
+    vector.into_iter().collect()
 }
 
 // 3. combinations
