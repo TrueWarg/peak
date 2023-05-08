@@ -1,10 +1,10 @@
 mod abstract_sequence;
 mod arithmetic;
+mod input;
 mod percentage;
 mod stats;
 mod task;
 mod tasks_pipe;
-mod input;
 use core::time;
 use std::{
     collections::HashSet,
@@ -22,7 +22,7 @@ use stats::{calculate_total_pos_neg, StatsConfig};
 use task::Question;
 use tasks_pipe::{run, run_with_stats, run_without_steps, PipeMod};
 
-use crate::stats::calculate_average_time_secs;
+use crate::stats::calculate_average_time_millis;
 
 #[derive(Parser)]
 struct Args {
@@ -128,9 +128,9 @@ fn main() -> Result<()> {
                 &mut std::io::stdout(),
                 &value,
             )?;
-            if stats.times_secs.is_some() {
-                let average = calculate_average_time_secs(stats.times_secs.unwrap());
-                println!("Average time: {} secs", average);
+            if stats.times_millis.is_some() {
+                let average = calculate_average_time_millis(stats.times_millis.unwrap());
+                println!("Average time: {} secs", average / 1000);
             }
             if stats.pos_negs.is_some() {
                 let pos_neg = calculate_total_pos_neg(stats.pos_negs.unwrap());

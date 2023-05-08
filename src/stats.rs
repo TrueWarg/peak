@@ -6,7 +6,7 @@ pub struct StatsConfig {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct CollectedStats {
-    pub times_secs: Option<Vec<u64>>,
+    pub times_millis: Option<Vec<u128>>,
     pub pos_negs: Option<Vec<bool>>,
 }
 
@@ -15,11 +15,11 @@ pub struct PosNeg {
     pub negative: u8,
 }
 
-pub fn calculate_average_time_secs(times_secs: Vec<u64>) -> u64 {
-    let mut full: u64 = 0;
-    let mut prev: u64 = 0;
-    let length = times_secs.len() as u64;
-    for time in times_secs {
+pub fn calculate_average_time_millis(times_millis: Vec<u128>) -> u128 {
+    let mut full: u128 = 0;
+    let mut prev: u128 = 0;
+    let length = times_millis.len() as u128;
+    for time in times_millis {
         full = full + (time - prev);
         prev = time;
     }
