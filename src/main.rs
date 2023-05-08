@@ -4,6 +4,7 @@ mod percentage;
 mod stats;
 mod task;
 mod tasks_pipe;
+mod input;
 use core::time;
 use std::{
     collections::HashSet,
