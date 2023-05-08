@@ -6,7 +6,7 @@ use std::{
 
 pub struct DefferedInput<'a> {
     pub input: &'a [u8],
-    pub delay_secs: u64,
+    pub delay_millis: u128,
 }
 
 impl<'a> Read for DefferedInput<'a> {
@@ -24,7 +24,7 @@ impl<'a> BufRead for DefferedInput<'a> {
 
     #[inline]
     fn consume(&mut self, amt: usize) {
-        thread::sleep(Duration::from_secs(self.delay_secs));
+        thread::sleep(Duration::from_millis(self.delay_millis as u64));
         self.input = &self.input[amt..];
     }
 }

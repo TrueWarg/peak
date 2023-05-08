@@ -37,7 +37,7 @@ pub fn run_with_stats<Q: Question + ?Sized>(
     stats_config: &StatsConfig,
 ) -> Result<CollectedStats> {
     let instant = Instant::now();
-    let mut times: Vec<u64> = vec![];
+    let mut times: Vec<u128> = vec![];
     let mut pos_negs: Vec<bool> = vec![];
 
     run(
@@ -49,7 +49,7 @@ pub fn run_with_stats<Q: Question + ?Sized>(
         |_, answer| {
             if answer && pipe_mod == &PipeMod::UntilRight || pipe_mod == &PipeMod::Skip {
                 if stats_config.time {
-                    times.push(instant.elapsed().as_secs())
+                    times.push(instant.elapsed().as_millis())
                 }
                 if stats_config.percentage {
                     pos_negs.push(answer)
@@ -64,7 +64,7 @@ pub fn run_with_stats<Q: Question + ?Sized>(
         None
     };
     Ok(CollectedStats {
-        times_secs: times,
+        times_millis: times,
         pos_negs: pos_negs,
     })
 }
@@ -328,7 +328,7 @@ fn mod_skip_with_stats_0() -> Result<()> {
         vec![Box::new(Sum { a: 1, b: 1 }), Box::new(Sub { a: 1, b: 1 })];
     let mut input = DefferedInput {
         input: "2\n0\n".as_bytes(),
-        delay_secs: 0,
+        delay_millis: 0,
     };
     let mut output: Vec<u8> = Vec::new();
     let stats_config = StatsConfig {
@@ -336,7 +336,7 @@ fn mod_skip_with_stats_0() -> Result<()> {
         percentage: false,
     };
     let expected_stats = CollectedStats {
-        times_secs: Some(vec![0, 0]),
+        times_millis: Some(vec![0, 0]),
         pos_negs: None,
     };
     let stats = run_with_stats(
@@ -360,7 +360,7 @@ fn mod_skip_with_stats_1() -> Result<()> {
     ];
     let mut input = DefferedInput {
         input: "2\n0\n1\n".as_bytes(),
-        delay_secs: 1,
+        delay_millis: 50,
     };
     let mut output: Vec<u8> = Vec::new();
     let stats_config = StatsConfig {
@@ -368,7 +368,7 @@ fn mod_skip_with_stats_1() -> Result<()> {
         percentage: true,
     };
     let expected_stats = CollectedStats {
-        times_secs: Some(vec![1, 2, 3]),
+        times_millis: Some(vec![50, 100, 150]),
         pos_negs: Some(vec![true, true, false]),
     };
     let stats = run_with_stats(
@@ -392,7 +392,7 @@ fn mod_skip_with_stats_2() -> Result<()> {
         vec![Box::new(Sum { a: 1, b: 1 }), Box::new(Sub { a: 1, b: 1 })];
     let mut input = DefferedInput {
         input: "3\n0\n".as_bytes(),
-        delay_secs: 1,
+        delay_millis: 1000,
     };
     let mut output: Vec<u8> = Vec::new();
     let stats_config = StatsConfig {
@@ -400,7 +400,7 @@ fn mod_skip_with_stats_2() -> Result<()> {
         percentage: true,
     };
     let expected_stats = CollectedStats {
-        times_secs: None,
+        times_millis: None,
         pos_negs: Some(vec![false, true]),
     };
     let stats = run_with_stats(
@@ -421,7 +421,7 @@ fn mod_until_right_with_stats_2() -> Result<()> {
         vec![Box::new(Sum { a: 1, b: 1 }), Box::new(Sum { a: 2, b: 3 })];
     let mut input = DefferedInput {
         input: "2\n2\n5\n".as_bytes(),
-        delay_secs: 1,
+        delay_millis: 50,
     };
     let mut output: Vec<u8> = Vec::new();
     let stats_config = StatsConfig {
@@ -429,7 +429,7 @@ fn mod_until_right_with_stats_2() -> Result<()> {
         percentage: true,
     };
     let expected_stats = CollectedStats {
-        times_secs: Some(vec![1, 3]),
+        times_millis: Some(vec![50, 150]),
         pos_negs: Some(vec![true, true]),
     };
     let stats = run_with_stats(
