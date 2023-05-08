@@ -1,14 +1,16 @@
 use crate::{
     abstract_sequence::{all_combinations, Form, Missing, SeqItem, Size},
     arithmetic::{Div, Mod, Mul, Sub, Sum},
+    input::{self, DefferedInput},
     percentage::Percent,
     stats::{CollectedStats, StatsConfig},
     task::Question,
 };
 use anyhow::{Ok, Result};
 use std::{
-    io::{BufRead, Write},
+    io::{BufRead, Read, Write},
     iter::Skip,
+    thread,
     time::{Duration, Instant},
 };
 
@@ -45,11 +47,13 @@ pub fn run_with_stats<Q: Question + ?Sized>(
         writer,
         |_| (),
         |_, answer| {
-            if stats_config.time {
-                times.push(instant.elapsed().as_secs())
-            }
-            if stats_config.percentage {
-                pos_negs.push(answer)
+            if answer && pipe_mod == &PipeMod::UntilRight || pipe_mod == &PipeMod::Skip {
+                if stats_config.time {
+                    times.push(instant.elapsed().as_secs())
+                }
+                if stats_config.percentage {
+                    pos_negs.push(answer)
+                }
             }
         },
     )?;
@@ -315,5 +319,130 @@ fn mod_until_right_1() -> Result<()> {
         &output,
         b"1 + 1 = ?\ntrue\n2 + 3 = ?\nfalse\n2 + 3 = ?\ntrue\n"
     );
+    Ok(())
+}
+
+#[test]
+fn mod_skip_with_stats_0() -> Result<()> {
+    let questions: Vec<Box<dyn Question>> =
+        vec![Box::new(Sum { a: 1, b: 1 }), Box::new(Sub { a: 1, b: 1 })];
+    let mut input = DefferedInput {
+        input: "2\n0\n".as_bytes(),
+        delay_secs: 0,
+    };
+    let mut output: Vec<u8> = Vec::new();
+    let stats_config = StatsConfig {
+        time: true,
+        percentage: false,
+    };
+    let expected_stats = CollectedStats {
+        times_secs: Some(vec![0, 0]),
+        pos_negs: None,
+    };
+    let stats = run_with_stats(
+        &questions,
+        &PipeMod::Skip,
+        &mut input,
+        &mut output,
+        &stats_config,
+    )?;
+    assert_eq!(&output, b"1 + 1 = ?\ntrue\n1 - 1 = ?\ntrue\n");
+    assert_eq!(stats, expected_stats);
+    Ok(())
+}
+
+#[test]
+fn mod_skip_with_stats_1() -> Result<()> {
+    let questions: Vec<Box<dyn Question>> = vec![
+        Box::new(Sum { a: 1, b: 1 }),
+        Box::new(Sub { a: 1, b: 1 }),
+        Box::new(Mul { a: 1, b: 2 }),
+    ];
+    let mut input = DefferedInput {
+        input: "2\n0\n1\n".as_bytes(),
+        delay_secs: 1,
+    };
+    let mut output: Vec<u8> = Vec::new();
+    let stats_config = StatsConfig {
+        time: true,
+        percentage: true,
+    };
+    let expected_stats = CollectedStats {
+        times_secs: Some(vec![1, 2, 3]),
+        pos_negs: Some(vec![true, true, false]),
+    };
+    let stats = run_with_stats(
+        &questions,
+        &PipeMod::Skip,
+        &mut input,
+        &mut output,
+        &stats_config,
+    )?;
+    assert_eq!(
+        &output,
+        b"1 + 1 = ?\ntrue\n1 - 1 = ?\ntrue\n1 * 2 = ?\nfalse\n"
+    );
+    assert_eq!(stats, expected_stats);
+    Ok(())
+}
+
+#[test]
+fn mod_skip_with_stats_2() -> Result<()> {
+    let questions: Vec<Box<dyn Question>> =
+        vec![Box::new(Sum { a: 1, b: 1 }), Box::new(Sub { a: 1, b: 1 })];
+    let mut input = DefferedInput {
+        input: "3\n0\n".as_bytes(),
+        delay_secs: 1,
+    };
+    let mut output: Vec<u8> = Vec::new();
+    let stats_config = StatsConfig {
+        time: false,
+        percentage: true,
+    };
+    let expected_stats = CollectedStats {
+        times_secs: None,
+        pos_negs: Some(vec![false, true]),
+    };
+    let stats = run_with_stats(
+        &questions,
+        &PipeMod::Skip,
+        &mut input,
+        &mut output,
+        &stats_config,
+    )?;
+    assert_eq!(&output, b"1 + 1 = ?\nfalse\n1 - 1 = ?\ntrue\n");
+    assert_eq!(stats, expected_stats);
+    Ok(())
+}
+
+#[test]
+fn mod_until_right_with_stats_2() -> Result<()> {
+    let questions: Vec<Box<dyn Question>> =
+        vec![Box::new(Sum { a: 1, b: 1 }), Box::new(Sum { a: 2, b: 3 })];
+    let mut input = DefferedInput {
+        input: "2\n2\n5\n".as_bytes(),
+        delay_secs: 1,
+    };
+    let mut output: Vec<u8> = Vec::new();
+    let stats_config = StatsConfig {
+        time: true,
+        percentage: true,
+    };
+    let expected_stats = CollectedStats {
+        times_secs: Some(vec![1, 3]),
+        pos_negs: Some(vec![true, true]),
+    };
+    let stats = run_with_stats(
+        &questions,
+        &PipeMod::UntilRight,
+        &mut input,
+        &mut output,
+        &stats_config,
+    )?;
+    assert_eq!(
+        &output,
+        b"1 + 1 = ?\ntrue\n2 + 3 = ?\nfalse\n2 + 3 = ?\ntrue\n"
+    );
+    assert_eq!(stats, expected_stats);
     Ok(())
 }
