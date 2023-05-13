@@ -3,7 +3,9 @@ mod arithmetic;
 mod input;
 mod percentage;
 mod stats;
+mod store;
 mod task;
+
 mod tasks_pipe;
 use core::time;
 use std::{
@@ -12,17 +14,19 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crate::stats::calculate_average_time_millis;
 use abstract_sequence::{all_combinations, Missing, SeqItem};
 use anyhow::{anyhow, Ok, Result};
 use arithmetic::{Div, Mod, Mul, Sub, Sum};
 use clap::Parser;
 use percentage::Percent;
 use rand::{seq::SliceRandom, Rng};
+use rusqlite::Connection;
 use stats::{calculate_total_pos_neg, StatsConfig};
+use store::stats as store_stats;
 use task::Question;
 use tasks_pipe::{run, run_with_stats, run_without_steps, PipeMod};
-
-use crate::stats::calculate_average_time_millis;
+use uuid::Uuid;
 
 #[derive(Parser)]
 struct Args {
@@ -140,6 +144,21 @@ fn main() -> Result<()> {
                     pos_neg.positive + pos_neg.negative
                 );
             }
+            let connection = Connection::open("data/stats.db")?;
+
+            store_stats::create_table_if_not_exist(&connection)?;
+            let stats = store_stats::Stats {
+                id: Uuid::new_v4().to_string(),
+                question_type: String::from("sum"),
+                formatted_body: String::from("1 + 1 = ?"),
+                is_answer_right: false,
+                time_millis: 1200,
+                created_at_millis: 12121212,
+            };
+            store_stats::insert_or_replace(&connection, stats)?;
+            let result = store_stats::select_all(&connection)?;
+            let _ = connection.close();
+            print_stats(&result);
         }
         None => {
             run_without_steps(
@@ -191,11 +210,8 @@ fn parse_config_stat_options(opts: String) -> HashSet<String> {
     vector.into_iter().collect()
 }
 
-// 3. combinations
-// 4. Regimes: skip, until right
-// 5. Statistic.
-
-// peak -- help
-// peak start -> default
-// peak stat [clear] [delete id]
-// peak settings
+fn print_stats(items: &Vec<store_stats::Stats>) {
+    for item in items {
+        println!("{:?}", item);
+    }
+}
